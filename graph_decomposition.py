@@ -197,6 +197,31 @@ for block in blocks:
     blocks_koenig_graph.append(block_koening)
     print(f'#####Для блока:\nkoening: {block_koening}\nhyperedges: {block_hyperedges}')
 
+
+def createL2Graph(hyperedges: dict, koening_graph: dict)->dict:
+    l2 = dict()
+    for node, edges in koening_graph.items():
+        node_neighbours = []
+        for edge in edges:
+            node_neighbours += hyperedges[edge]
+        node_neighbours = set(node_neighbours) - {node}
+        l2[node] = node_neighbours
+    return l2
+
+l2 = createL2Graph( blocks_hyperedges[0],blocks_koenig_graph[0])
+
+# Является ли гиперграф триангулированным ?
+def isGraphTriangulated(l2_graph: dict) -> bool:
+    l2 = l2_graph.copy()
+    count_nodes = len(l2)
+
+    # Поиск и удаление симплициальных вершин
+    while count_nodes:
+        nodes = l2.keys()
+        pass
+
+    return count_nodes == 0
+
 # Поиск ситуации 1
 
 
