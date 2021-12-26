@@ -11,6 +11,8 @@ from PyQt5.QtWidgets import QApplication, QLabel, QMessageBox, QWidget, QMainWin
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
 
+import graph_decomposition
+
 
 def flatten(t):
     return [item for sublist in t for item in sublist]
@@ -43,31 +45,24 @@ class MainWidget(QWidget):
         generate_button = QPushButton('Сгенерировать', self)
         generate_button.clicked.connect(self.generate)
 
-        self.start_node_input = Input()
-        self.start_node_input.setTitle("Стартовая вершина")
-        self.start_node_input.setText("1")
-        self.start_node_input.setValidator(QIntValidator())
-
-        self.end_node_input = Input()
-        self.end_node_input.setTitle("Конечная вершина")
-        self.end_node_input.setText("5")
-        self.end_node_input.setValidator(QIntValidator())
-
-        run_button = QPushButton('Найти кратчайший путь', self)
+        run_button = QPushButton('Найти дерево декомпозиции гиперграфа', self)
         run_button.clicked.connect(self.run)
 
         self.result_label = QLabel()
         self.result_label.setWordWrap(True)
 
+        self.decomposition_tree_canvas = MplCanvas(self, 5, 4)
+        self.decomposition_tree_canvas.hide()
+
+
         main_layout.addWidget(self.canvas)
+        main_layout.addWidget(self.decomposition_tree_canvas )
         main_layout.setStretch(0, 10)
         main_layout.addItem(sidebar_layout)
 
         sidebar_layout.addWidget(self.graph_size_input)
         sidebar_layout.addWidget(self.number_of_edges_input)
         sidebar_layout.addWidget(generate_button)
-        sidebar_layout.addWidget(self.start_node_input)
-        sidebar_layout.addWidget(self.end_node_input)
         sidebar_layout.addWidget(run_button)
         sidebar_layout.addWidget(self.result_label)
         sidebar_layout.addStretch(10)
@@ -77,80 +72,17 @@ class MainWidget(QWidget):
     def run(self):
         self.result_label.setText("")
 
-        graph = self.graph
-        nodes = list(graph.nodes)
+        self.graph_decomposition_tree, decomposition_tree_width = \
+            graph_decomposition.buildHypergraphDecompositionTree(self.hyperedges)
 
-        try:
-            start = int(self.start_node_input.text())
-        except ValueError:
-            self.showError("Введите стартовую вершину")
-            return
-        if not (f"v{start}" in nodes):
-            self.showError("Стартовая вершина не найдена в графе")
-            return
+        self.result_label.setText(f"<font color='blue'>Ширина построенного дерева декомпозиции: {decomposition_tree_width}</font>")
 
-        try:
-            end = int(self.end_node_input.text())
-        except ValueError:
-            self.showError("Введите конечную вершину")
-            return
-        if not (f"v{end}" in nodes):
-            self.showError("Конечная вершина не найдена в графе")
-            return
+        self.decomposition_tree_canvas.show()
+        self.drawDecompositionTree()
 
-        start = f"v{start}"
-        end = f"v{end}"
-
-        hyperedges = self.hyperedges.copy()
-        for i in graph.edges:
-            hyperedge = graph.edges[i]
-            hyperedges[i] = {
-                "nodes": hyperedges[i],
-                "weight": hyperedge.weight
-            }
-
-        print("\nnodes", nodes)
-        print("hyperedges", hyperedges)
-        print("start node", start)
-        print("end node", end)
-        print('-----------')
-
-        dist = {node: 1000000 for node in nodes}
-        routes = {node: [] for node in nodes}
-
-        dist[start] = 0
-        queue = [node for node in nodes]
-        seen = set()
-        while len(queue) > 0:
-            min_dist = sys.maxsize
-            min_node = None
-            for node in queue:
-                if dist[node] < min_dist and node not in seen:
-                    min_dist = dist[node]
-                    min_node = node
-
-            queue.remove(min_node)
-            seen.add(min_node)
-            connections = [(i, hyperedges[i]["nodes"], hyperedges[i]["weight"])
-                           for i in hyperedges if min_node in hyperedges[i]["nodes"]]
-            print(min_node)
-            print(connections)
-
-            for (edge, neighbors, weight) in connections:
-                for neighbor in neighbors:
-                    tot_dist = weight + min_dist
-                    if tot_dist < dist[neighbor]:
-                        dist[neighbor] = tot_dist
-                        routes[neighbor] = list(routes[min_node])
-                        routes[neighbor].append(edge)
-
-        print('-----------')
-        print("distances", dist)
-        print("routes", routes)
-        self.result_label.setText(
-            f"Кратчайшее расстояние от {start} до {end} равно {dist[end]}\nМаршрут: {routes[end]}")
 
     def generate(self):
+        self.decomposition_tree_canvas.hide()
         self.result_label.setText("")
 
         try:
@@ -179,31 +111,34 @@ class MainWidget(QWidget):
                    1].append(flatten(simple_edges[hyperedge_volume * number_of_edges:]))
         hyperedges = [flatten(i) for i in hyperedges]
         hyperedges = {
-            i: list(set(hyperedges[i]))
+            i + 1: list(set(hyperedges[i]))
             for i in range(len(hyperedges))
         }
         print("\n", hyperedges)
 
         self.graph = hnx.Hypergraph(hyperedges)
         self.hyperedges = hyperedges
-        for i in range(len(self.graph.edges)):
-            self.graph.edges[i].weight = randint(1, 100)
-        self.draw()
+        self.drawHypergraph()
 
-    def draw(self):
+    def drawHypergraph(self):
         self.canvas.clear()
-        edge_labels = {i: f"{i}:{self.graph.edges[i].weight}"
-                       for i in range(len(self.graph.edges))}
         hnx.draw(
             self.graph,
             ax=self.canvas.axes,
-            edge_labels=edge_labels,
             node_labels_kwargs={
                 'fontsize': 8
             }
         )
-
         self.canvas.draw()
+
+    def drawDecompositionTree(self):
+        self.decomposition_tree_canvas.clear()
+        nx.draw(
+            self.graph_decomposition_tree,
+            ax=self.decomposition_tree_canvas.axes,
+            with_labels=True
+        )
+        self.decomposition_tree_canvas.draw()
 
     def showError(self, text: str):
         error_dialog = QMessageBox()
@@ -243,7 +178,7 @@ class Input(QWidget):
 
 class MplCanvas(FigureCanvasQTAgg):
 
-    def __init__(self, parent=None, width=5, height=4, dpi=100):
+    def __init__(self, parent=None, width=5, height=4, dpi=150):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
         super(MplCanvas, self).__init__(self.fig)
