@@ -1,5 +1,7 @@
 import hypernetx as hnx
 import matplotlib.pyplot as plt
+import networkx as nx
+import copy
 
 empty_set = set()
 
@@ -14,6 +16,8 @@ hyperedges2 = {1:['v1', 'v2', 'v3', 'v4', 'v5', 'v6'],
               7:['v14', 'v16']}
 
 hyperedges = {edge - 1:[int(node_str[1:]) - 1 for node_str in node] for edge, node in hyperedges2.items()}
+
+max_edge_number = max(hyperedges2.keys()) - 1
 
 print('starting hyperedges:\n', hyperedges)
 
@@ -30,6 +34,8 @@ def createKoenigGraphFromHyperedges(my_hyperedges):
 #accounted_nodes = [0 for _ in range(count_nodes)]
 
 koenig_graph = createKoenigGraphFromHyperedges(hyperedges)
+
+original_hyperedges = copy.deepcopy(hyperedges)
 
 
 hypergraph = hnx.Hypergraph(hyperedges2)
@@ -208,23 +214,63 @@ def createL2Graph(hyperedges: dict, koening_graph: dict)->dict:
         l2[node] = node_neighbours
     return l2
 
-l2 = createL2Graph( blocks_hyperedges[0],blocks_koenig_graph[0])
+h_add = copy.deepcopy(original_hyperedges)
 
-# Является ли гиперграф триангулированным ?
-def isGraphTriangulated(l2_graph: dict) -> bool:
-    l2 = l2_graph.copy()
-    count_nodes = len(l2)
+for i in range(len(blocks)):
+    l2 = createL2Graph( blocks_hyperedges[i],blocks_koenig_graph[i])
+    #isGraphTriangulated(l2)
 
-    # Поиск и удаление симплициальных вершин
-    while count_nodes:
-        nodes = l2.keys()
-        pass
+    edge_list = []
+    for node, neihbour_nodes in l2.items():
+        for neihbour_node in neihbour_nodes:
+            if neihbour_node < node:
+                continue
+            edge_list.append((node, neihbour_node))
 
-    return count_nodes == 0
+    print('edge_list:', edge_list)
 
-# Поиск ситуации 1
+    g = nx.Graph(edge_list)
+    is_triangulated_graph = nx.algorithms.is_chordal(g)
+    if is_triangulated_graph:
+        triangulared_graph = g
+    else:
+        triangulared_graph, a = nx.algorithms.complete_to_chordal_graph(g)
+    max_cliques = nx.algorithms.clique.find_cliques(triangulared_graph)
+    print('triangulated:', list(triangulared_graph.edges))
 
+    for i, max_clique in enumerate(max_cliques):
+        clique_set = set(max_clique)
+        is_edge_exist = False
+        for edge, nodes in h_add .items():
+            if set(nodes) == clique_set:
+                is_edge_exist = True
+                break
+        if not is_edge_exist:
+            max_edge_number += 1
+            h_add [max_edge_number] = max_clique
 
+print('original_heperedges + max_cliques =', h_add)
+
+lh = []
+nodes_sets = [set(nodes) for edge, nodes in h_add.items()]
+for i in range(max_edge_number):
+    for j in range(i + 1, max_edge_number + 1):
+        intersection = nodes_sets[i].intersection(nodes_sets[j])
+        if intersection != empty_set:
+            lh.append((-len(intersection), (i,j)))
+
+print('lh =', lh)
+print('len(lh)', len(lh))
+
+p    = {}
+rank = {}
+
+def MakeSet(x):
+    p[x] = 0
+
+def CruskalAlgorithm():
+    A = []
+    lh = sorted(lh, key=lambda element: element[0])
 
 plt.show()
 
