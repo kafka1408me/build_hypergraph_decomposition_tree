@@ -1,15 +1,17 @@
 import sys
 import hypernetx as hnx
 import networkx as nx
-import numpy as np
+#import numpy as np
+import math
 import matplotlib.pyplot as plt
 
 from random import randint, shuffle
 from PyQt5.QtGui import QIntValidator, QValidator
 from PyQt5.QtWidgets import QApplication, QLabel, QMessageBox, QWidget, QMainWindow, QHBoxLayout, QVBoxLayout, \
-    QLineEdit, QPushButton
+    QLineEdit, QPushButton, QSplitter
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
+from PyQt5.QtCore import QSize
 
 import graph_decomposition
 
@@ -51,12 +53,14 @@ class MainWidget(QWidget):
         self.result_label = QLabel()
         self.result_label.setWordWrap(True)
 
-        self.decomposition_tree_canvas = MplCanvas(self, 5, 4)
-        self.decomposition_tree_canvas.hide()
+        self.decomposition_tree_canvas = MplCanvas(self, 6, 4)
 
+        self.splitter = QSplitter()
 
-        main_layout.addWidget(self.canvas)
-        main_layout.addWidget(self.decomposition_tree_canvas )
+        self.splitter.addWidget(self.canvas)
+        self.splitter.addWidget(self.decomposition_tree_canvas )
+
+        main_layout.addWidget(self.splitter)
         main_layout.setStretch(0, 10)
         main_layout.addItem(sidebar_layout)
 
@@ -133,7 +137,7 @@ class MainWidget(QWidget):
 
     def drawDecompositionTree(self):
         self.decomposition_tree_canvas.clear()
-        nx.draw(
+        nx.draw_kamada_kawai(
             self.graph_decomposition_tree,
             ax=self.decomposition_tree_canvas.axes,
             with_labels=True
@@ -178,13 +182,15 @@ class Input(QWidget):
 
 class MplCanvas(FigureCanvasQTAgg):
 
-    def __init__(self, parent=None, width=5, height=4, dpi=150):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = self.fig.add_subplot(111)
         super(MplCanvas, self).__init__(self.fig)
+        self.setMinimumWidth(150)
 
     def clear(self):
         self.axes.cla()
+
 
 
 class Window(QMainWindow):
@@ -196,7 +202,7 @@ class Window(QMainWindow):
 
     def initUI(self):
         self.setGeometry(600, 600, 1000, 800)
-        self.setWindowTitle('Нахождение кратчайшего пути в гиперграфе')
+        self.setWindowTitle('Построение дерева декомпозиции гиперграфа')
 
         mainWidget = MainWidget()
         mainWidget.generate()

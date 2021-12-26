@@ -334,6 +334,7 @@ def buildHypergraphDecompositionTree(_hyperedges):
         count_nodes = len(nodes)
         if count_nodes > decomposition_tree_width:
             decomposition_tree_width = count_nodes
+    decomposition_tree_width -= 1
 
     labeled_decomposition_tree = [(labaled_edges[edge[0]], labaled_edges[edge[1]]) for edge in decomposition_tree]
     # Возвращаем дерево декомпозиции и ширину дерева декомпозиции
